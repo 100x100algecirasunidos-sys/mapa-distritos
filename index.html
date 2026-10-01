@@ -29,7 +29,6 @@
   /* Elementos móviles (ocultos en escritorio) */
   .mobile-topbar{display:none}
   .backdrop{display:none}
-  .fab{display:none}
   .sheet-handle{display:none}
   .sc-close{display:none}
 
@@ -38,31 +37,49 @@
     #app{display:block;height:100dvh}
     #map{position:fixed;inset:0;height:100dvh;height:100vh}
 
-    /* Barra superior flotante */
-    .mobile-topbar{display:flex;align-items:center;gap:10px;position:fixed;top:0;left:0;right:0;z-index:1050;padding:8px 12px;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-    .mobile-topbar .logo{height:34px}
-    .mobile-topbar .mt-title{font-size:14.5px;font-weight:800;color:#111827;flex:1}
-    .mobile-topbar .mt-title span{color:var(--accent)}
+    /* Barra superior: título + botones de capa fijos + buscador desplegable */
+    .mobile-topbar{display:flex;flex-direction:column;position:fixed;top:0;left:0;right:0;z-index:1050;background:rgba(255,255,255,.97);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);box-shadow:0 2px 12px rgba(16,24,40,.06)}
+    .mt-row{display:flex;align-items:center;gap:10px;padding:8px 12px 6px}
+    .mobile-topbar .logo{height:32px}
+    .mt-title{font-size:14.5px;font-weight:800;color:#111827;flex:1}
+    .mt-title span{color:var(--accent)}
     .mt-burger{background:#fff;border:1px solid var(--line);border-radius:10px;width:38px;height:38px;font-size:18px;color:var(--txt)}
 
-    /* Panel como hoja inferior */
-    #panel{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:1200;max-height:82dvh;border-radius:20px 20px 0 0;border-right:none;border-top:1px solid var(--line);box-shadow:0 -12px 40px rgba(16,24,40,.18);transform:translateY(105%);transition:transform .28s ease}
-    #panel.open{transform:translateY(0)}
-    .sheet-handle{display:block;width:44px;height:5px;border-radius:999px;background:#d6dae0;margin:8px auto 0;flex:none}
-    .p-head{padding-top:8px}
+    .layer-bar{display:flex;gap:6px;padding:0 12px 10px}
+    .lb-btn{flex:1;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 4px;font-size:12px;font-weight:700;color:var(--muted)}
+    .lb-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
 
-    /* Fondo oscuro al abrir la hoja */
+    /* Buscador que se despliega hacia abajo */
+    #searchDropdown{display:none;padding:0 12px 10px}
+    #searchDropdown.on{display:block}
+    #searchDropdown .search-row{display:flex;gap:6px}
+    #searchDropdown input{flex:1;background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 10px;outline:none;font-size:14px}
+    #searchDropdown input:focus{border-color:var(--accent)}
+    #searchDropdown .search-btn{background:var(--accent);border:none;border-radius:10px;padding:0 12px;font-weight:700;color:#fff}
+    #searchResultsM{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px;max-height:38vh;overflow-y:auto}
+    #searchResultsM li{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;font-size:13px}
+    #searchResultsM li:hover{background:var(--accent-soft);border-color:var(--accent)}
+    #searchResultsM .rn{font-weight:700}
+    #searchResultsM .rd{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #searchResultsM .src{font-size:10px;color:var(--accent);font-weight:700;margin-top:2px}
+    #searchResultsM .empty{color:var(--muted);font-size:12px;padding:6px 2px;cursor:default}
+
+    /* Menú lateral desplegable */
+    #panel{position:fixed;top:0;bottom:0;left:0;width:86%;max-width:340px;z-index:1200;border-right:1px solid var(--line);border-radius:0 18px 18px 0;box-shadow:12px 0 40px rgba(16,24,40,.22);transform:translateX(-105%);transition:transform .28s ease}
+    #panel.open{transform:translateX(0)}
+    .sheet-handle{display:none}
+
+    /* Fondo oscuro al abrir el menú */
     .backdrop{display:block;position:fixed;inset:0;z-index:1100;background:rgba(17,24,39,.45);opacity:0;pointer-events:none;transition:opacity .25s}
     .backdrop.on{opacity:1;pointer-events:auto}
 
-    /* Botón flotante de búsqueda */
-    .fab{display:grid;place-items:center;position:fixed;right:14px;bottom:18px;z-index:1000;width:56px;height:56px;border-radius:50%;background:var(--accent);color:#fff;border:none;box-shadow:0 8px 24px rgba(249,115,22,.45)}
-    .fab:active{background:var(--accent-dark)}
-    .fab svg{width:24px;height:24px}
+    /* En móvil las capas van en la barra superior; en el menú ocultamos toggles y buscador de escritorio */
+    #panel .toggles{display:none}
+    #searchBox{display:none!important}
 
-    /* Control de mapa base más arriba para no tapar la barra */
-    .base-switch{top:58px!important;right:10px!important}
-    .leaflet-control-zoom{top:58px!important}
+    /* Control de mapa base más abajo para no tapar la barra */
+    .base-switch{top:118px!important;right:10px!important}
+    .leaflet-control-zoom{top:118px!important}
 
     /* Tarjeta de calle flotante */
     #streetCard{left:12px;right:12px;bottom:12px;max-width:none}
@@ -161,6 +178,19 @@
   .btn.primary:hover{background:var(--accent-dark)}
   .note{font-size:11px;color:var(--muted);line-height:1.5;margin-top:12px}
 
+  /* Buscador de barriadas (modo consulta) */
+  #barriadaSearchInput{width:100%;background:#fff;border:1px solid var(--line);border-radius:11px;padding:9px 11px;outline:none;margin-bottom:8px;font-size:12.5px}
+  #barriadaSearchInput:focus{border-color:var(--accent)}
+  #barriadaSearchResults{display:grid;gap:6px;max-height:280px;overflow-y:auto}
+  #barriadaSearchResults::-webkit-scrollbar{width:8px}
+  #barriadaSearchResults::-webkit-scrollbar-thumb{background:#d6dae0;border-radius:8px}
+  .bs-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:11px;background:#fff;cursor:pointer}
+  .bs-row:hover{background:#fffaf5;border-color:var(--accent)}
+  .bs-row .sw{width:12px;height:12px;border-radius:4px;flex:none}
+  .bs-row .bs-name{flex:1;font-size:12.5px;font-weight:700}
+  .bs-row .bs-zone{font-size:11px;color:var(--muted)}
+  #barriadaSearchResults .empty{color:var(--muted);font-size:12px;padding:6px 2px}
+
   /* Popup Leaflet */
   .leaflet-popup-content-wrapper{background:#fff;color:#1f2937;border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 40px rgba(16,24,40,.18)}
   .leaflet-popup-tip{background:#fff;border:1px solid var(--line)}
@@ -201,14 +231,25 @@
 </head>
 <body>
 <div class="mobile-topbar" id="mobileTopbar">
-  <img class="logo" src="logo.png" alt="Logo" onerror="this.style.display='none'" />
-  <div class="mt-title">Algeciras · <span>Zonas</span></div>
-  <button class="mt-burger" id="burgerBtn" aria-label="Abrir panel">☰</button>
+  <div class="mt-row">
+    <img class="logo" src="logo.png" alt="Logo" onerror="this.style.display='none'" />
+    <div class="mt-title">Algeciras · <span>Zonas</span></div>
+    <button class="mt-burger" id="burgerBtn" aria-label="Abrir menú">☰</button>
+  </div>
+  <div class="layer-bar" id="layerBar">
+    <button class="lb-btn active" data-layer="tBarriadas">Barriadas</button>
+    <button class="lb-btn active" data-layer="tZonas">Zonas</button>
+    <button class="lb-btn" data-layer="tSearch">Buscador</button>
+  </div>
+  <div id="searchDropdown">
+    <div class="search-row">
+      <input id="streetInputM" type="text" placeholder="Buscar calle…" autocomplete="off" />
+      <button class="search-btn" id="searchBtnM">Buscar</button>
+    </div>
+    <ul id="searchResultsM"></ul>
+  </div>
 </div>
 <div class="backdrop" id="backdrop"></div>
-<button class="fab" id="fabSearch" aria-label="Buscar calle">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-</button>
 <div id="app">
   <aside id="panel">
     <div class="sheet-handle"></div>
@@ -266,6 +307,13 @@
       <!-- Leyenda -->
       <div class="sec-title">Zonas de color</div>
       <div class="legend" id="legend"></div>
+
+      <!-- Buscador de barriadas (modo consulta) -->
+      <div class="sec-title" id="barriadaSearchTitle">Buscador de barriadas</div>
+      <div id="barriadaSearchBox">
+        <input id="barriadaSearchInput" type="text" placeholder="Buscar barriada…" autocomplete="off" />
+        <div id="barriadaSearchResults"></div>
+      </div>
 
       <!-- Gestor -->
       <div class="sec-title" id="managerTitle">Gestor de barriadas</div>
@@ -767,11 +815,46 @@
       const el = $(id);
       if (el) el.style.display = EDIT_MODE ? '' : 'none';
     });
+    ['barriadaSearchTitle', 'barriadaSearchBox'].forEach(id => {
+      const el = $(id);
+      if (el) el.style.display = EDIT_MODE ? 'none' : '';
+    });
     const sub = document.querySelector('.brand .sub');
     if (sub){
       sub.textContent = EDIT_MODE
         ? 'Barriadas delimitadas · 5 zonas de color · MODO EDICIÓN'
         : 'Barriadas delimitadas · 5 zonas de color · consulta';
+    }
+  }
+
+  /* Buscador de barriadas (modo consulta, sin editor de zona) */
+  function renderBarriadaSearch(){
+    const box = $('barriadaSearchResults');
+    if (!box) return;
+    const q = $('barriadaSearchInput').value.trim().toLowerCase();
+    const names = barriadas
+      .map(f => f.properties.nombre)
+      .filter(n => !q || n.toLowerCase().includes(q))
+      .sort((a, b) => a.localeCompare(b, 'es'));
+    box.innerHTML = '';
+    if (!names.length){
+      box.innerHTML = '<div class="empty">Sin resultados.</div>';
+      return;
+    }
+    for (const n of names){
+      const row = document.createElement('div');
+      row.className = 'bs-row';
+      const zid = zoneOf(n);
+      const sw = zid === 'none'
+        ? 'repeating-linear-gradient(45deg,#e5e7eb 0 3px,#ffffff 3px 6px)'
+        : barriadaColor(n);
+      row.innerHTML = `<span class="sw" style="background:${sw}"></span><span class="bs-name">${esc(n)}</span><span class="bs-zone">${esc(zoneById(zid).nombre)}</span>`;
+      row.title = 'Acercar a esta barriada';
+      row.addEventListener('click', () => {
+        zoomToBarriada(n);
+        if (isMobile()) closePanel();
+      });
+      box.appendChild(row);
     }
   }
 
@@ -963,6 +1046,7 @@
     renderZonas();
     renderLegend();
     renderManager();
+    renderBarriadaSearch();
     if (fit) fitBounds();
   }
 
@@ -1007,12 +1091,11 @@
 
   let searchSeq = 0;
 
-  function searchStreets(){
-    const q = $('streetInput').value.trim();
-    const ul = $('searchResults');
-    if (!q){ ul.innerHTML = ''; return; }
+  function searchStreets(inputEl, ulEl){
+    const q = inputEl.value.trim();
+    if (!q){ ulEl.innerHTML = ''; return; }
     const mySeq = ++searchSeq;
-    ul.innerHTML = '<li class="empty">Buscando…</li>';
+    ulEl.innerHTML = '<li class="empty">Buscando…</li>';
 
     const nominatimParams = new URLSearchParams({
       format: 'jsonv2',
@@ -1041,7 +1124,7 @@
 
     Promise.all([cartoReq, nomReq]).then(([carto, nom]) => {
       if (mySeq !== searchSeq) return; /* otra búsqueda más reciente */
-      ul.innerHTML = '';
+      ulEl.innerHTML = '';
       const results = [];
 
       if (carto && carto.address){
@@ -1071,7 +1154,7 @@
       }
 
       if (!results.length){
-        ul.innerHTML = '<li class="empty">Sin resultados. Prueba solo con el nombre de la calle.</li>';
+        ulEl.innerHTML = '<li class="empty">Sin resultados. Prueba solo con el nombre de la calle.</li>';
         return;
       }
 
@@ -1079,11 +1162,11 @@
         const li = document.createElement('li');
         li.innerHTML = `<div class="rn">${esc(r.title)}</div><div class="rd">${esc(r.sub)}</div><div class="src">${esc(r.src)}</div>`;
         li.addEventListener('click', () => selectStreet(r));
-        ul.appendChild(li);
+        ulEl.appendChild(li);
       }
     }).catch(() => {
       if (mySeq !== searchSeq) return; /* otra búsqueda más reciente */
-      ul.innerHTML = '<li class="empty">Error al buscar. Reintenta en unos segundos.</li>';
+      ulEl.innerHTML = '<li class="empty">Error al buscar. Reintenta en unos segundos.</li>';
     });
   }
 
@@ -1137,7 +1220,12 @@
       }
     }
     $('searchResults').innerHTML = '';
-    if (isMobile()) closePanel(); /* en móvil se cierra la hoja para ver el mapa */
+    const resM = $('searchResultsM');
+    if (resM) resM.innerHTML = '';
+    if (isMobile()){
+      const dd = $('searchDropdown');
+      if (dd) dd.classList.remove('on'); /* se pliega para ver el mapa */
+    }
   }
 
   function findBarriadaAt(lon, lat){
@@ -1163,6 +1251,7 @@
       if (this.checked) barriadasLayer.addTo(map);
       else barriadasLayer.remove();
       $('tBarriadas').closest('.toggle').querySelector('.onoff').textContent = this.checked ? 'ON' : 'OFF';
+      syncLayerBar();
     });
     $('tZonas').addEventListener('change', function(){
       if (this.checked) renderZonas();
@@ -1170,31 +1259,70 @@
       renderBarriadas(); /* cambia entre color por zona y color individual */
       renderLegend();
       $('tZonas').closest('.toggle').querySelector('.onoff').textContent = this.checked ? 'ON' : 'OFF';
+      syncLayerBar();
     });
     $('tSearch').addEventListener('change', function(){
       const on = this.checked;
       $('searchBox').classList.toggle('on', on);
+      const dd = $('searchDropdown');
+      if (dd) dd.classList.toggle('on', on);
+      if (on && isMobile()) setTimeout(() => { const i = $('streetInputM'); if (i) i.focus(); }, 300);
       $('tSearch').closest('.toggle').querySelector('.onoff').textContent = on ? 'ON' : 'OFF';
       if (!on){
         streetMarkers.remove();
         $('searchResults').innerHTML = '';
+        const resM = $('searchResultsM');
+        if (resM) resM.innerHTML = '';
         $('streetCard').classList.remove('on');
       }
+      syncLayerBar();
+    });
+  }
+
+  function syncLayerBar(){
+    document.querySelectorAll('.lb-btn').forEach(btn => {
+      const cb = $(btn.dataset.layer);
+      btn.classList.toggle('active', !!(cb && cb.checked));
     });
   }
 
   /* ====================== Eventos ====================== */
 
   function bindEvents(){
-    $('searchBtn').addEventListener('click', searchStreets);
+    $('searchBtn').addEventListener('click', () => searchStreets($('streetInput'), $('searchResults')));
     let debounce = null;
     $('streetInput').addEventListener('input', () => {
       clearTimeout(debounce);
-      debounce = setTimeout(searchStreets, 450);
+      debounce = setTimeout(() => searchStreets($('streetInput'), $('searchResults')), 450);
     });
     $('streetInput').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter'){ e.preventDefault(); searchStreets(); }
+      if (e.key === 'Enter'){ e.preventDefault(); searchStreets($('streetInput'), $('searchResults')); }
     });
+
+    /* Buscador móvil */
+    $('searchBtnM').addEventListener('click', () => searchStreets($('streetInputM'), $('searchResultsM')));
+    let debounceM = null;
+    $('streetInputM').addEventListener('input', () => {
+      clearTimeout(debounceM);
+      debounceM = setTimeout(() => searchStreets($('streetInputM'), $('searchResultsM')), 450);
+    });
+    $('streetInputM').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter'){ e.preventDefault(); searchStreets($('streetInputM'), $('searchResultsM')); }
+    });
+
+    /* Botones de capa fijos (móvil) */
+    document.querySelectorAll('.lb-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cb = $(btn.dataset.layer);
+        if (!cb) return;
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event('change'));
+      });
+    });
+
+    /* Buscador de barriadas (modo consulta) */
+    $('barriadaSearchInput').addEventListener('input', renderBarriadaSearch);
+
     $('filterBarriadas').addEventListener('input', renderManager);
     $('resetBtn').addEventListener('click', resetZones);
     $('exportBtn').addEventListener('click', exportZones);
@@ -1204,15 +1332,9 @@
       loadBarriadas();
     });
 
-    /* Panel móvil (hoja inferior) */
+    /* Menú móvil lateral */
     $('burgerBtn').addEventListener('click', togglePanel);
     $('backdrop').addEventListener('click', closePanel);
-    $('fabSearch').addEventListener('click', () => {
-      openPanel();
-      const t = $('tSearch');
-      if (!t.checked){ t.checked = true; t.dispatchEvent(new Event('change')); }
-      setTimeout(() => $('streetInput').focus(), 350);
-    });
     $('scClose').addEventListener('click', () => $('streetCard').classList.remove('on'));
     window.addEventListener('resize', () => {
       if (!isMobile()) closePanel();
