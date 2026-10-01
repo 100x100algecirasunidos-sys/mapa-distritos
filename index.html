@@ -1,0 +1,1126 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Algeciras · Zonas — Barriadas, zonificación editable y buscador de calles</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<style>
+  :root{
+    --bg:#f4f5f7;
+    --panel:#ffffff;
+    --line:#e6e8ec;
+    --txt:#1f2937;
+    --muted:#6b7280;
+    --accent:#f97316;
+    --accent-dark:#ea6a0a;
+    --accent-soft:#fff4ec;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt);overflow:hidden}
+  button,select,input{font:inherit;color:var(--txt)}
+  button{cursor:pointer}
+
+  /* Layout */
+  #app{display:grid;grid-template-columns:400px 1fr;height:100vh}
+  #map{height:100vh;background:#e9ebef}
+  @media (max-width:1024px){
+    body{overflow:auto}
+    #app{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:auto}
+    #panel{max-height:60vh;border-right:none;border-bottom:1px solid var(--line)}
+    #map{height:70vh}
+  }
+
+  /* Panel */
+  #panel{position:relative;z-index:500;display:flex;flex-direction:column;background:var(--panel);border-right:1px solid var(--line);overflow:hidden}
+  .p-head{padding:16px 16px 14px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff,#fffdfb)}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{height:46px;width:auto;object-fit:contain;flex:none}
+  .brand h1{margin:0;font-size:16px;font-weight:800;letter-spacing:.2px;color:#111827}
+  .brand h1 span{color:var(--accent)}
+  .brand .sub{font-size:11.5px;color:var(--muted);margin-top:1px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 6px;text-align:center;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  .kpi .v{font-size:15px;font-weight:800;color:var(--accent)}
+  .kpi .l{font-size:10px;color:var(--muted);margin-top:2px}
+
+  .p-body{flex:1;overflow-y:auto;padding:12px 14px 18px}
+  .p-body::-webkit-scrollbar{width:9px}
+  .p-body::-webkit-scrollbar-thumb{background:#d6dae0;border-radius:8px}
+
+  /* Toggles (ticks de selección) */
+  .toggles{display:grid;gap:8px;margin-bottom:14px}
+  .toggle{display:flex;align-items:center;gap:10px;padding:10px 11px;border:1px solid var(--line);border-radius:13px;background:#fff;cursor:pointer;user-select:none;transition:border-color .15s, box-shadow .15s}
+  .toggle:hover{border-color:#f2c6a8}
+  .toggle input{display:none}
+  .tick{width:22px;height:22px;border-radius:6px;border:2px solid #cbd2da;display:grid;place-items:center;flex:none;transition:all .15s;background:#fff}
+  .tick svg{width:13px;height:13px;opacity:0;transform:scale(.5);transition:all .15s}
+  .toggle input:checked + .tick{border-color:var(--accent);background:var(--accent)}
+  .toggle input:checked + .tick svg{opacity:1;transform:scale(1)}
+  .toggle .t-label{font-size:13px;font-weight:650}
+  .toggle .t-hint{font-size:11px;color:var(--muted);margin-top:1px}
+  .toggle .onoff{margin-left:auto;font-size:10.5px;color:var(--muted);border:1px solid var(--line);padding:2px 7px;border-radius:999px;background:#fafbfc}
+
+  /* Buscador */
+  #searchBox{display:none;margin-bottom:14px}
+  #searchBox.on{display:block}
+  .search-row{display:flex;gap:8px}
+  #streetInput{flex:1;background:#fff;border:1px solid var(--line);border-radius:11px;padding:9px 11px;outline:none;box-shadow:inset 0 1px 2px rgba(16,24,40,.05)}
+  #streetInput:focus{border-color:var(--accent)}
+  .search-btn{background:var(--accent);border:none;border-radius:11px;padding:0 14px;font-weight:700;color:#fff}
+  .search-btn:hover{background:var(--accent-dark)}
+  #searchResults{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px;max-height:230px;overflow-y:auto}
+  #searchResults li{background:#fff;border:1px solid var(--line);border-radius:11px;padding:8px 10px;cursor:pointer;font-size:12.5px}
+  #searchResults li:hover{background:var(--accent-soft);border-color:var(--accent)}
+  #searchResults .rn{font-weight:700}
+  #searchResults .rd{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #searchResults .src{font-size:10px;color:var(--accent);font-weight:700;margin-top:2px}
+  #searchResults .empty{color:var(--muted);font-size:12px;padding:6px 2px;cursor:default}
+
+  /* Tarjeta de resultado de calle */
+  #streetCard{display:none;margin-bottom:14px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:13px;padding:11px}
+  #streetCard.on{display:block}
+  #streetCard .sc-title{font-size:13px;font-weight:800;margin-bottom:6px}
+  #streetCard .sc-line{font-size:12.5px;margin:3px 0;color:#374151}
+  #streetCard .zone-chip{display:inline-block;padding:2px 10px;border-radius:999px;font-size:11.5px;font-weight:700;color:#fff;margin-top:6px}
+
+  /* Secciones con título */
+  .sec-title{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin:16px 0 8px}
+  .sec-title::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  /* Leyenda de zonas / barriadas */
+  .legend{display:grid;gap:7px;max-height:340px;overflow-y:auto;padding-right:2px}
+  .legend::-webkit-scrollbar{width:8px}
+  .legend::-webkit-scrollbar-thumb{background:#d6dae0;border-radius:8px}
+  .leg-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;transition:background .15s}
+  .leg-item:hover{background:#fffaf5}
+  .leg-item .leg-name{font-size:12.5px}
+  .sw{width:16px;height:16px;border-radius:5px;flex:none}
+  .leg-name{font-size:13px;font-weight:700}
+  .leg-input{font-size:13px;font-weight:700;border:1px solid var(--accent);border-radius:7px;padding:3px 6px;outline:none;width:150px;background:#fff}
+  .leg-edit{background:none;border:none;padding:4px;border-radius:7px;display:grid;place-items:center;color:var(--muted);flex:none}
+  .leg-edit:hover{background:var(--accent-soft);color:var(--accent)}
+  .leg-edit svg{width:13px;height:13px}
+  .leg-count{margin-left:auto;font-size:11.5px;color:var(--muted)}
+
+  /* Gestor de barriadas */
+  #filterBarriadas{width:100%;background:#fff;border:1px solid var(--line);border-radius:11px;padding:8px 11px;outline:none;margin-bottom:10px;font-size:12.5px}
+  #filterBarriadas:focus{border-color:var(--accent)}
+  .zone-group{margin-bottom:12px}
+  .zone-head{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;margin:4px 0 6px}
+  .zone-head .sw{width:12px;height:12px;border-radius:4px}
+  .barrio-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:5px}
+  .barrio-row .bname{flex:1;font-size:12.5px;font-weight:600}
+  .barrio-row select{background:#fff;border:1px solid var(--line);border-radius:8px;padding:4px 6px;font-size:11.5px;max-width:150px;outline:none}
+  .barrio-row select:focus{border-color:var(--accent)}
+
+  .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .btn{flex:1;min-width:130px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:9px 10px;font-size:12px;font-weight:700}
+  .btn:hover{background:#fafbfc}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{background:var(--accent-dark)}
+  .note{font-size:11px;color:var(--muted);line-height:1.5;margin-top:12px}
+
+  /* Popup Leaflet */
+  .leaflet-popup-content-wrapper{background:#fff;color:#1f2937;border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 40px rgba(16,24,40,.18)}
+  .leaflet-popup-tip{background:#fff;border:1px solid var(--line)}
+  .leaflet-popup-content{margin:12px 14px;font-family:inherit}
+  .pp{min-width:235px}
+  .pp-title{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;margin-bottom:8px}
+  .pp .dot{width:12px;height:12px;border-radius:50%;flex:none}
+  .pp select{width:100%;margin-top:8px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:7px 8px;font-size:12.5px;outline:none}
+  .pp select:focus{border-color:var(--accent)}
+  .pp .pp-zone{margin-top:10px;font-size:11.5px;color:var(--muted)}
+  .pp .pp-zone b{color:var(--txt)}
+
+  /* Tooltip de barriada */
+  .btip{background:#fff;border:1px solid #f2c6a8;border-radius:9px;padding:5px 9px;color:#1f2937;font-size:12px;font-weight:700;box-shadow:0 4px 14px rgba(16,24,40,.14)}
+  .btip::before{display:none}
+  .zone-label{background:transparent;border:none;box-shadow:none;color:#111827;font-size:12.5px;font-weight:800;text-shadow:0 0 3px #fff,0 0 8px #fff,0 1px 2px #fff;letter-spacing:.4px}
+  .zone-label::before{display:none}
+
+  /* Controles propios */
+  .base-switch{background:#fff;border:1px solid var(--line);border-radius:12px;padding:5px;display:grid;gap:4px;box-shadow:0 4px 14px rgba(16,24,40,.10)}
+  .base-switch button{display:block;background:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:700;color:var(--txt)}
+  .base-switch button.active{background:var(--accent);color:#fff}
+  .leaflet-control-attribution{background:rgba(255,255,255,.85)!important;color:#6b7280!important;font-size:10px!important}
+  .leaflet-control-attribution a{color:#f97316!important}
+
+  /* Spinner */
+  #loading{position:fixed;inset:0;z-index:10000;background:rgba(244,245,247,.88);display:grid;place-items:center;transition:opacity .4s}
+  #loading.off{opacity:0;pointer-events:none}
+  .load-card{text-align:center;background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px 38px;box-shadow:0 12px 40px rgba(16,24,40,.10)}
+  .spinner{width:44px;height:44px;border-radius:50%;border:4px solid #fde3d0;border-top-color:var(--accent);animation:spin 1s linear infinite;margin:0 auto 14px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .load-card p{margin:0;color:var(--muted);font-size:13px}
+
+  /* Toast */
+  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:#111827;color:#fff;padding:10px 16px;border-radius:12px;font-size:12.5px;z-index:9000;opacity:0;transition:all .25s;pointer-events:none;max-width:80vw}
+  #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="panel">
+    <div class="p-head">
+      <div class="brand">
+        <img class="logo" src="Logo Normal Naranja.png" alt="Logo" />
+        <div>
+          <h1>Algeciras · <span>Zonas</span></h1>
+          <div class="sub">Barriadas delimitadas · 5 zonas de color · zonificación editable</div>
+        </div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="v" id="kBarriadas">0</div><div class="l">Barriadas</div></div>
+        <div class="kpi"><div class="v" id="kZonas">5</div><div class="l">Zonas</div></div>
+        <div class="kpi"><div class="v" id="kAsignadas">0</div><div class="l">Asignadas</div></div>
+        <div class="kpi"><div class="v" id="kCambios">0</div><div class="l">Cambios</div></div>
+      </div>
+    </div>
+
+    <div class="p-body">
+      <!-- Ticks de selección -->
+      <div class="sec-title" style="margin-top:2px">Capas visibles</div>
+      <div class="toggles">
+        <label class="toggle">
+          <input type="checkbox" id="tBarriadas" checked>
+          <span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+          <span><div class="t-label">Barriadas</div><div class="t-hint">Polígonos delimitados y nombrados</div></span>
+          <span class="onoff">ON</span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="tZonas" checked>
+          <span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+          <span><div class="t-label">Zonas</div><div class="t-hint">Agrupación en 5 zonas de color</div></span>
+          <span class="onoff">ON</span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="tSearch">
+          <span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+          <span><div class="t-label">Buscador / Calle</div><div class="t-hint">Busca una calle y la sitúa en su barriada</div></span>
+          <span class="onoff">OFF</span>
+        </label>
+      </div>
+
+      <!-- Buscador -->
+      <div id="searchBox">
+        <div class="sec-title" style="margin-top:0">Buscar calle en Algeciras</div>
+        <div class="search-row">
+          <input id="streetInput" type="text" placeholder="Ej.: calle segovia, calle ancha…" autocomplete="off" />
+          <button class="search-btn" id="searchBtn">Buscar</button>
+        </div>
+        <ul id="searchResults"></ul>
+        <div id="streetCard">
+          <div class="sc-title" id="scTitle">Calle</div>
+          <div class="sc-line" id="scBarriada"></div>
+          <div class="sc-line" id="scZona"></div>
+          <span class="zone-chip" id="scChip">Zona</span>
+        </div>
+      </div>
+
+      <!-- Leyenda -->
+      <div class="sec-title">Zonas de color</div>
+      <div class="legend" id="legend"></div>
+
+      <!-- Gestor -->
+      <div class="sec-title">Gestor de barriadas</div>
+      <input id="filterBarriadas" type="text" placeholder="Filtrar barriada…" autocomplete="off" />
+      <div id="zoneGroups"></div>
+
+      <div class="actions">
+        <button class="btn primary" id="resetBtn">Restablecer zonificación</button>
+        <button class="btn" id="exportBtn">Exportar JSON</button>
+      </div>
+      <div class="note">
+        Haz clic en una barriada del mapa o usa el desplegable para cambiar su zona. Usa el lápiz de la leyenda para
+        renombrar cada zona. Todo se guarda automáticamente en tu navegador. Base cartográfica: Esri (sin API key).
+        Callejero oficial: CartoCiudad · complemento: Nominatim (OSM). Datos: WFS del geoportal de Algeciras.
+      </div>
+    </div>
+  </aside>
+
+  <main><div id="map"></div></main>
+</div>
+
+<div id="loading"><div class="load-card"><div class="spinner"></div><p>Cargando barriadas de Algeciras…</p></div></div>
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+<script>
+  'use strict';
+
+  /* ====================== Configuración ====================== */
+
+  const BARRIADAS_URL = 'https://algeciras.enmapa.com/geoserver/algecirasgis/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=algecirasgis:barriadas&outputFormat=json&srsName=EPSG:4326';
+  const STORAGE_KEY = 'algeciras_zonas_v2';
+  const NAMES_KEY = 'algeciras_zonas_names_v2';
+  const CACHE_KEY = 'algeciras_barriadas_cache_v2';
+  const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 h
+
+  /* Zonas por defecto: ZONA 1..ZONA 5 (renombrables) */
+  const ZONES = [
+    { id: 'z1', nombre: 'ZONA 1', corto: 'Z1', color: '#f97316' },
+    { id: 'z2', nombre: 'ZONA 2', corto: 'Z2', color: '#2563eb' },
+    { id: 'z3', nombre: 'ZONA 3', corto: 'Z3', color: '#059669' },
+    { id: 'z4', nombre: 'ZONA 4', corto: 'Z4', color: '#7c3aed' },
+    { id: 'z5', nombre: 'ZONA 5', corto: 'Z5', color: '#0891b2' }
+  ];
+  const DEFAULT_ZONE_NAMES = { z1: 'ZONA 1', z2: 'ZONA 2', z3: 'ZONA 3', z4: 'ZONA 4', z5: 'ZONA 5' };
+  const NONE_ZONE = { id: 'none', nombre: 'Ninguna', corto: 'Ninguna', color: '#9ca3af' };
+
+  /* Zonificación por defecto: las 47 barriadas del WFS agrupadas geográficamente. */
+  const DEFAULT_ZONES = {
+    /* ZONA 1 (12) */
+    'Centro':'z1', 'La Bajadilla':'z1', 'La Caridad':'z1', 'La Fuente Nueva':'z1',
+    'San Isidro':'z1', 'Renfe':'z1', 'La Reconquista':'z1', 'Sierras de España':'z1',
+    'La Banda del Río':'z1', 'Los Pescadores':'z1', 'Puerto':'z1', 'La Perlita':'z1',
+    /* ZONA 2 (15) */
+    'La Piñera':'z2', 'La Yesera':'z2', 'Los Toreros':'z2', 'El Saladillo':'z2',
+    '15 de Junio':'z2', 'Terraza':'z2', 'La Juliana':'z2', 'El Rosario':'z2',
+    'Las Colinas':'z2', 'Lian Shan Po':'z2', 'San Bernabé':'z2', 'La Granja':'z2',
+    'San José Artesano':'z2', 'El Acebuchal':'z2', 'El Rinconcillo':'z2',
+    /* ZONA 3 (6) */
+    'La Colonia San Miguel':'z3', 'La Menacha':'z3', 'Los Pinos':'z3',
+    'Huerta las Pilas':'z3', 'Adalides':'z3', 'Pajarete':'z3',
+    /* ZONA 4 (7) */
+    'Getares':'z4', 'El Faro':'z4', 'San García':'z4', 'Campo de Golf':'z4',
+    'Pelayo':'z4', 'La Aldea':'z4', 'Soto Rebolo':'z4',
+    /* ZONA 5 (7) */
+    'Alamillos':'z5', 'Almendaraches':'z5', 'Cortijo Real':'z5', 'El Cobre':'z5',
+    'Las Herrrizas':'z5', 'Los Guijos':'z5', 'Los Pastores':'z5'
+  };
+
+  /* ====================== Estado ====================== */
+
+  let barriadas = [];            // features del WFS
+  let byName = {};               // nombre -> feature
+  let zoneMap = {};              // nombre -> zoneId (merge defaults + localStorage)
+  let selectedBarriada = null;
+  let streetMarkers = L.layerGroup();
+  let barriadasLayer = null;
+  let zonasLayer = null;
+  let labelsShown = null;
+  let baseLayers = {};
+  let individualColors = {};      // nombre -> color hex (modo barriadas individuales)
+
+  const fmt = new Intl.NumberFormat('es-ES');
+  const $ = (id) => document.getElementById(id);
+
+  const zoneById = (id) => id === 'none' ? NONE_ZONE : (ZONES.find(z => z.id === id) || ZONES[0]);
+  const zoneOf = (name) => zoneMap[name] || 'none';
+  const zoneColor = (name) => zoneById(zoneOf(name)).color;
+  const zonasOn = () => $('tZonas') ? $('tZonas').checked : true;
+
+  /* Convierte HSL a hex para poder mezclar con mixLight */
+  function hslToHex(h, s, l){
+    s /= 100; l /= 100;
+    const k = n => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    const to = v => Math.round(255 * v).toString(16).padStart(2, '0');
+    return '#' + to(f(0)) + to(f(8)) + to(f(4));
+  }
+
+  /* Paleta individual estable: 47 colores distribuidos con ángulo áureo */
+  function buildIndividualColors(){
+    individualColors = {};
+    const names = barriadas.map(f => f.properties.nombre).sort((a, b) => a.localeCompare(b, 'es'));
+    names.forEach((name, i) => {
+      individualColors[name] = hslToHex((i * 137.508) % 360, 62, 55);
+    });
+  }
+  const individualColor = (name) => individualColors[name] || '#9ca3af';
+  const barriadaColor = (name) => {
+    if (zoneOf(name) === 'none') return '#9ca3af';
+    return zonasOn() ? zoneColor(name) : individualColor(name);
+  };
+
+  function esc(s){
+    return String(s == null ? '' : s)
+      .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+      .replaceAll('"','&quot;').replaceAll("'",'&#39;');
+  }
+
+  /* Mezcla un color de zona hacia el fondo claro para el relleno */
+  function mixLight(hex, t){
+    const c = hex.replace('#','');
+    const full = c.length === 3 ? c.split('').map(x => x + x).join('') : c;
+    const int = parseInt(full, 16);
+    const r = (int >> 16) & 255, g = (int >> 8) & 255, b = int & 255;
+    const m = Math.max(0, Math.min(1, t));
+    const out = [
+      Math.round(255 + (r - 255) * m),
+      Math.round(255 + (g - 255) * m),
+      Math.round(255 + (b - 255) * m)
+    ];
+    return `rgb(${out[0]},${out[1]},${out[2]})`;
+  }
+
+  function toast(msg){
+    const el = $('toast');
+    el.textContent = msg;
+    el.classList.add('on');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.classList.remove('on'), 2400);
+  }
+
+  /* ====================== Mapa base ====================== */
+
+  const map = L.map('map', { zoomControl: true, attributionControl: true });
+
+  /* Bases fiables desde file:// y sin API key (teselas verificadas) */
+  baseLayers.calles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, attribution: '&copy; Esri'
+  });
+  baseLayers.topo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, attribution: '&copy; Esri'
+  });
+  baseLayers.satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, attribution: 'Imagery &copy; Esri'
+  });
+  baseLayers.calles.addTo(map);
+  map.setView([36.131, -5.451], 13);
+
+  /* Control de mapa base */
+  const baseSwitch = L.control({ position: 'topright' });
+  baseSwitch.onAdd = function(){
+    const div = L.DomUtil.create('div', 'base-switch');
+    div.innerHTML =
+      '<button data-base="calles" class="active">Calles</button>' +
+      '<button data-base="topo">Topográfico</button>' +
+      '<button data-base="satelite">Satélite</button>';
+    L.DomEvent.disableClickPropagation(div);
+    div.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        div.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        for (const layer of Object.values(baseLayers)) map.removeLayer(layer);
+        baseLayers[btn.dataset.base].addTo(map);
+      });
+    });
+    return div;
+  };
+  baseSwitch.addTo(map);
+
+  /* ====================== Carga de datos (con caché) ====================== */
+
+  function readCache(){
+    try{
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      if (!obj || !Array.isArray(obj.data) || !obj.data.length) return null;
+      if (Date.now() - obj.t > CACHE_TTL) return null;
+      return obj.data;
+    }catch(e){ return null; }
+  }
+
+  function writeCache(features){
+    try{
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), data: features }));
+    }catch(e){}
+  }
+
+  function applyData(features){
+    barriadas = features;
+    byName = Object.fromEntries(barriadas.map(f => [f.properties.nombre, f]));
+    buildIndividualColors();
+    loadZoneMap();
+    loadZoneNames();
+    renderAll(true);
+    fitBounds();
+    $('loading').classList.add('off');
+  }
+
+  async function fetchBarriadas(){
+    const res = await fetch(BARRIADAS_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    const feats = Array.isArray(json.features) ? json.features : [];
+    if (!feats.length) throw new Error('El WFS no devolvió barriadas');
+    return feats;
+  }
+
+  async function loadBarriadas(){
+    const cached = readCache();
+    if (cached){
+      applyData(cached);
+      /* Refresco en segundo plano */
+      fetchBarriadas().then(feats => {
+        if (feats.length !== barriadas.length){
+          applyData(feats);
+        }
+        writeCache(feats);
+      }).catch(() => {});
+      return;
+    }
+    try{
+      const feats = await fetchBarriadas();
+      writeCache(feats);
+      applyData(feats);
+    }catch(err){
+      console.error(err);
+      $('loading').querySelector('p').textContent = 'No se pudieron cargar las barriadas. Reintentando…';
+      setTimeout(loadBarriadas, 3500);
+    }
+  }
+
+  function loadZoneMap(){
+    zoneMap = { ...DEFAULT_ZONES };
+    try{
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      for (const [name, zid] of Object.entries(saved)){
+        if (byName[name] && (zid === 'none' || ZONES.some(z => z.id === zid))) zoneMap[name] = zid;
+      }
+    }catch(e){}
+  }
+
+  function loadZoneNames(){
+    try{
+      const saved = JSON.parse(localStorage.getItem(NAMES_KEY) || '{}');
+      for (const z of ZONES){
+        if (saved[z.id] && String(saved[z.id]).trim()) z.nombre = String(saved[z.id]).trim();
+      }
+    }catch(e){}
+  }
+
+  function persist(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(zoneMap)); }catch(e){}
+    updateKpis();
+  }
+
+  function persistNames(){
+    try{
+      const names = Object.fromEntries(ZONES.map(z => [z.id, z.nombre]));
+      localStorage.setItem(NAMES_KEY, JSON.stringify(names));
+    }catch(e){}
+  }
+
+  function renameZone(zid, newName){
+    const name = String(newName || '').trim();
+    if (!name) return;
+    const z = zoneById(zid);
+    z.nombre = name;
+    persistNames();
+    renderLegend();
+    renderManager();
+    renderZonas();
+    toast(`Zona renombrada: ${name}`);
+  }
+
+  function resetZones(){
+    if (!confirm('¿Restablecer la zonificación y los nombres originales de las 5 zonas?')) return;
+    zoneMap = { ...DEFAULT_ZONES };
+    try{
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(NAMES_KEY);
+    }catch(e){}
+    ZONES.forEach(z => { z.nombre = DEFAULT_ZONE_NAMES[z.id]; });
+    selectedBarriada = null;
+    renderAll(false);
+    toast('Zonificación y nombres restablecidos');
+  }
+
+  function exportZones(){
+    const data = {
+      app: 'Algeciras · Zonas',
+      fecha: new Date().toISOString(),
+      zonas: ZONES.map(z => ({
+        id: z.id, nombre: z.nombre, color: z.color,
+        barriadas: Object.entries(zoneMap).filter(([,v]) => v === z.id).map(([n]) => n).sort()
+      })),
+      sin_zona: Object.entries(zoneMap).filter(([,v]) => v === 'none').map(([n]) => n).sort()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'algeciras_zonas.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  /* ====================== Render: barriadas ====================== */
+
+  function styleBarriada(feature){
+    const name = feature.properties.nombre;
+    const selected = selectedBarriada === name;
+    const zid = zoneOf(name);
+
+    /* Sin zona (Ninguna): neutro, sin color */
+    if (zid === 'none'){
+      return {
+        color: selected ? '#111827' : '#9ca3af',
+        weight: selected ? 3 : 1.1,
+        dashArray: selected ? null : '4 4',
+        fillColor: selected ? '#e5e7eb' : '#f3f4f6',
+        fillOpacity: selected ? 0.9 : 0.35
+      };
+    }
+
+    /* Modo barriadas individuales (Zonas desactivadas) */
+    const col = zonasOn() ? zoneColor(name) : individualColor(name);
+    return {
+      color: selected ? '#111827' : col,
+      weight: selected ? 3 : 1.3,
+      fillColor: selected ? col : mixLight(col, 0.55),
+      fillOpacity: selected ? 0.85 : 0.7
+    };
+  }
+
+  function renderBarriadas(){
+    if (barriadasLayer) barriadasLayer.remove();
+    barriadasLayer = L.geoJSON(barriadas, {
+      style: styleBarriada,
+      onEachFeature: (feature, layer) => {
+        const name = feature.properties.nombre;
+        const permanent = map.getZoom() >= 14;
+        layer.bindTooltip(
+          `<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:${barriadaColor(name)};display:inline-block"></span>${esc(name)}</span>`,
+          { permanent, direction: 'center', className: 'btip', opacity: 1 }
+        );
+        layer.bindPopup(() => buildPopup(name));
+        layer.on('click', () => {
+          selectedBarriada = name;
+          renderBarriadas();
+          highlightAndPopup(name);
+        });
+      }
+    }).addTo(map);
+    labelsShown = map.getZoom() >= 14;
+    if (!$('tBarriadas').checked) barriadasLayer.remove();
+  }
+
+  function highlightAndPopup(name){
+    if (!byName[name]) return;
+    const layer = barriadasLayer.getLayers().find(l => l.feature.properties.nombre === name);
+    if (layer){
+      layer.bringToFront();
+      layer.openPopup();
+    }
+  }
+
+  function buildPopup(name){
+    const zid = zoneOf(name);
+    const zoneOpts = ZONES.map(z =>
+      `<option value="${z.id}" ${z.id === zid ? 'selected' : ''}>${esc(z.nombre)}</option>`
+    ).join('');
+    const noneOpt = `<option value="none" ${zid === 'none' ? 'selected' : ''}>Ninguna (sin zona)</option>`;
+    const zonaLabel = zid === 'none'
+      ? 'Sin zona asignada'
+      : `Barriada de <b>${esc(zoneById(zid).nombre)}</b>`;
+    return `
+      <div class="pp">
+        <div class="pp-title"><span class="dot" style="background:${zoneById(zid).color}"></span>${esc(name)}</div>
+        <div class="pp-zone">${zonaLabel}</div>
+        <label style="display:block;margin-top:10px;font-size:11.5px;color:#6b7280">Cambiar de zona</label>
+        <select onchange="setZoneFromPopup(this)" data-name="${esc(name)}">${zoneOpts}${noneOpt}</select>
+      </div>`;
+  }
+
+  /* Cambio desde el popup */
+  window.setZoneFromPopup = function(sel){
+    const name = sel.dataset.name;
+    setZone(name, sel.value);
+    highlightAndPopup(name);
+  };
+
+  function setZone(name, zid){
+    if (!byName[name] || !(zid === 'none' || ZONES.some(z => z.id === zid))) return;
+    zoneMap[name] = zid;
+    persist();
+    renderBarriadas();
+    renderZonas();
+    renderLegend();
+    renderManager();
+    toast(`${name} → ${zoneById(zid).nombre}`);
+  }
+
+  /* ====================== Render: zonas disueltas ====================== */
+
+  function dissolveZone(zid){
+    const feats = barriadas.filter(f => zoneOf(f.properties.nombre) === zid);
+    if (!feats.length) return null;
+    if (feats.length === 1) return feats[0];
+    let merged = null;
+    try{
+      for (const f of feats){
+        merged = merged ? turf.union(merged, f) : f;
+        if (!merged) return null;
+      }
+      return merged;
+    }catch(e){
+      try{ return turf.convex(turf.featureCollection(feats)); }catch(e2){ return null; }
+    }
+  }
+
+  function renderZonas(){
+    if (zonasLayer) zonasLayer.remove();
+    if (!$('tZonas').checked) return; /* optimización: no disuelve si está oculta */
+    const feats = [];
+    for (const z of ZONES){
+      const dissolved = dissolveZone(z.id);
+      if (!dissolved) continue;
+      feats.push(Object.assign({}, dissolved, {
+        properties: { zoneId: z.id }
+      }));
+    }
+    zonasLayer = L.geoJSON(feats, {
+      style: (feature) => ({
+        color: zoneById(feature.properties.zoneId).color,
+        weight: 3,
+        dashArray: '6 6',
+        fillColor: zoneById(feature.properties.zoneId).color,
+        fillOpacity: 0.05,
+        interactive: false
+      }),
+      onEachFeature: (feature, layer) => {
+        const z = zoneById(feature.properties.zoneId);
+        const count = barriadas.filter(f => zoneOf(f.properties.nombre) === z.id).length;
+        layer.bindTooltip(`${z.nombre} · ${count}`, {
+          permanent: true, direction: 'center', className: 'zone-label'
+        });
+      }
+    }).addTo(map);
+  }
+
+  /* ====================== Render: panel ====================== */
+
+  function renderLegend(){
+    const el = $('legend');
+    el.innerHTML = '';
+
+    /* Modo individual (Zonas desactivadas): leyenda de las 47 barriadas */
+    if (!zonasOn()){
+      const names = barriadas.map(f => f.properties.nombre).sort((a, b) => a.localeCompare(b, 'es'));
+      for (const n of names){
+        const item = document.createElement('div');
+        item.className = 'leg-item';
+        const sw = document.createElement('span');
+        sw.className = 'sw';
+        sw.style.background = zoneOf(n) === 'none'
+          ? 'repeating-linear-gradient(45deg,#e5e7eb 0 4px,#ffffff 4px 8px)'
+          : individualColor(n);
+        item.appendChild(sw);
+        const nameEl = document.createElement('span');
+        nameEl.className = 'leg-name';
+        nameEl.textContent = n;
+        item.appendChild(nameEl);
+        item.title = 'Acercar a esta barriada';
+        item.addEventListener('click', () => zoomToBarriada(n));
+        el.appendChild(item);
+      }
+      return;
+    }
+
+    /* Modo zonas: 5 zonas + Ninguna */
+    const pencil = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
+    for (const z of ZONES){
+      const count = Object.values(zoneMap).filter(v => v === z.id).length;
+      const item = document.createElement('div');
+      item.className = 'leg-item';
+      const sw = document.createElement('span');
+      sw.className = 'sw';
+      sw.style.background = z.color;
+      item.appendChild(sw);
+      const nameEl = document.createElement('span');
+      nameEl.className = 'leg-name';
+      nameEl.textContent = z.nombre;
+      item.appendChild(nameEl);
+      const editBtn = document.createElement('button');
+      editBtn.className = 'leg-edit';
+      editBtn.innerHTML = pencil;
+      editBtn.title = 'Renombrar zona';
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        startRename(z.id, nameEl);
+      });
+      item.appendChild(editBtn);
+      const countEl = document.createElement('span');
+      countEl.className = 'leg-count';
+      countEl.textContent = count + ' barriadas';
+      item.appendChild(countEl);
+      item.title = 'Acercar a esta zona';
+      item.addEventListener('click', () => zoomToZone(z.id));
+      el.appendChild(item);
+    }
+
+    const noneCount = Object.values(zoneMap).filter(v => v === 'none').length;
+    if (noneCount > 0){
+      const item = document.createElement('div');
+      item.className = 'leg-item none';
+      const sw = document.createElement('span');
+      sw.className = 'sw';
+      sw.style.background = 'repeating-linear-gradient(45deg,#e5e7eb 0 4px,#ffffff 4px 8px)';
+      item.appendChild(sw);
+      const nameEl = document.createElement('span');
+      nameEl.className = 'leg-name';
+      nameEl.textContent = 'Ninguna (sin zona)';
+      item.appendChild(nameEl);
+      const countEl = document.createElement('span');
+      countEl.className = 'leg-count';
+      countEl.textContent = noneCount + ' barriadas';
+      item.appendChild(countEl);
+      item.title = 'Acercar a las barriadas sin zona';
+      item.addEventListener('click', () => zoomToZone('none'));
+      el.appendChild(item);
+    }
+  }
+
+  function startRename(zid, nameEl){
+    const input = document.createElement('input');
+    input.className = 'leg-input';
+    input.value = zoneById(zid).nombre;
+    nameEl.replaceWith(input);
+    input.focus();
+    input.select();
+    let done = false;
+    const save = () => {
+      if (done) return;
+      done = true;
+      renameZone(zid, input.value);
+    };
+    const cancel = () => {
+      if (done) return;
+      done = true;
+      renderLegend();
+    };
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter'){ e.preventDefault(); save(); }
+      else if (e.key === 'Escape'){ cancel(); }
+    });
+    input.addEventListener('blur', save);
+  }
+
+  function renderManager(){
+    const wrap = $('zoneGroups');
+    wrap.innerHTML = '';
+    const filter = $('filterBarriadas').value.trim().toLowerCase();
+    const buildRows = (names, currentZid) => {
+      const rows = [];
+      for (const n of names){
+        const row = document.createElement('div');
+        row.className = 'barrio-row';
+        const opts = ZONES.map(zz => `<option value="${zz.id}" ${zz.id === currentZid ? 'selected' : ''}>${esc(zz.corto)}</option>`).join('') +
+          `<option value="none" ${currentZid === 'none' ? 'selected' : ''}>Ninguna</option>`;
+        row.innerHTML = `<span class="bname">${esc(n)}</span><select onchange="setZone(this.dataset.name, this.value)" data-name="${esc(n)}">${opts}</select>`;
+        rows.push(row);
+      }
+      return rows;
+    };
+
+    for (const z of ZONES){
+      const names = Object.entries(zoneMap)
+        .filter(([,v]) => v === z.id)
+        .map(([n]) => n)
+        .filter(n => !filter || n.toLowerCase().includes(filter))
+        .sort((a,b) => a.localeCompare(b, 'es'));
+      if (!names.length) continue;
+      const group = document.createElement('div');
+      group.className = 'zone-group';
+      group.innerHTML = `<div class="zone-head"><span class="sw" style="background:${z.color}"></span>${esc(z.nombre)} · ${names.length}</div>`;
+      buildRows(names, z.id).forEach(row => group.appendChild(row));
+      wrap.appendChild(group);
+    }
+
+    /* Grupo "Ninguna" */
+    const noneNames = Object.entries(zoneMap)
+      .filter(([,v]) => v === 'none')
+      .map(([n]) => n)
+      .filter(n => !filter || n.toLowerCase().includes(filter))
+      .sort((a,b) => a.localeCompare(b, 'es'));
+    if (noneNames.length){
+      const group = document.createElement('div');
+      group.className = 'zone-group';
+      group.innerHTML = `<div class="zone-head"><span class="sw" style="background:repeating-linear-gradient(45deg,#e5e7eb 0 4px,#ffffff 4px 8px)"></span>Ninguna (sin zona) · ${noneNames.length}</div>`;
+      buildRows(noneNames, 'none').forEach(row => group.appendChild(row));
+      wrap.appendChild(group);
+    }
+  }
+
+  function updateKpis(){
+    $('kBarriadas').textContent = fmt.format(barriadas.length);
+    $('kAsignadas').textContent = fmt.format(Object.entries(zoneMap).filter(([n, z]) => byName[n] && z !== 'none').length);
+    let cambios = 0;
+    for (const [n, z] of Object.entries(zoneMap)){
+      if (DEFAULT_ZONES[n] && DEFAULT_ZONES[n] !== z) cambios++;
+    }
+    $('kCambios').textContent = fmt.format(cambios);
+  }
+
+  function zoomToZone(zid){
+    const feats = barriadas.filter(f => zoneOf(f.properties.nombre) === zid);
+    if (!feats.length) return;
+    const bounds = L.geoJSON(feats).getBounds();
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30] });
+  }
+
+  function zoomToBarriada(name){
+    const f = byName[name];
+    if (!f) return;
+    const bounds = L.geoJSON(f).getBounds();
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
+    selectedBarriada = name;
+    renderBarriadas();
+    highlightAndPopup(name);
+  }
+
+  function renderAll(fit){
+    updateKpis();
+    renderBarriadas();
+    renderZonas();
+    renderLegend();
+    renderManager();
+    if (fit) fitBounds();
+  }
+
+  function fitBounds(){
+    try{
+      const bounds = L.geoJSON(barriadas).getBounds();
+      if (bounds.isValid()) map.fitBounds(bounds, { padding: [20, 20] });
+    }catch(e){
+      map.setView([36.131, -5.451], 13);
+    }
+  }
+
+  /* ====================== Buscador de calles ====================== */
+
+  const CARTOCIUDAD = 'https://www.cartociudad.es/geocoder/api/geocoder/find';
+  const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
+
+  /* Convierte WKT de CartoCiudad (LINESTRING / MULTILINESTRING) a [ [lat,lon], ... ] */
+  function parseWktLine(wkt){
+    if (!wkt) return null;
+    const m = String(wkt).match(/^\s*(MULTILINESTRING|LINESTRING)\s*\((.*)\)\s*$/i);
+    if (!m) return null;
+    const type = m[1].toUpperCase();
+    const body = m[2];
+    const lines = [];
+    if (type === 'MULTILINESTRING'){
+      const re = /\(([^()]*)\)/g;
+      let lm;
+      while ((lm = re.exec(body))) lines.push(lm[1]);
+    } else {
+      lines.push(body);
+    }
+    const coords = [];
+    for (const line of lines){
+      for (const pair of line.split(',')){
+        const [x, y] = pair.trim().split(/\s+/).map(Number);
+        if (isFinite(x) && isFinite(y)) coords.push([y, x]);
+      }
+    }
+    return coords.length ? coords : null;
+  }
+
+  let searchSeq = 0;
+
+  function searchStreets(){
+    const q = $('streetInput').value.trim();
+    const ul = $('searchResults');
+    if (!q){ ul.innerHTML = ''; return; }
+    const mySeq = ++searchSeq;
+    ul.innerHTML = '<li class="empty">Buscando…</li>';
+
+    const nominatimParams = new URLSearchParams({
+      format: 'jsonv2',
+      q: q + ', Algeciras, Cádiz',
+      countrycodes: 'es',
+      viewbox: '-5.53,36.02,-5.41,36.18',
+      bounded: '0',
+      limit: '5',
+      addressdetails: '1'
+    });
+
+    /* Timeout para que el buscador nunca se quede colgado */
+    function fetchWithTimeout(url, ms){
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), ms);
+      return fetch(url, { signal: ctrl.signal, headers: { 'Accept': 'application/json' } })
+        .finally(() => clearTimeout(t));
+    }
+
+    const cartoReq = fetchWithTimeout(CARTOCIUDAD + '?q=' + encodeURIComponent(q + ' algeciras'), 9000)
+      .then(r => r.ok ? r.json() : null)
+      .catch(() => null);
+    const nomReq = fetchWithTimeout(NOMINATIM + '?' + nominatimParams.toString(), 9000)
+      .then(r => r.json())
+      .catch(() => []);
+
+    Promise.all([cartoReq, nomReq]).then(([carto, nom]) => {
+      if (mySeq !== searchSeq) return; /* otra búsqueda más reciente */
+      ul.innerHTML = '';
+      const results = [];
+
+      if (carto && carto.address){
+        const line = parseWktLine(carto.geom);
+        const center = line ? L.latLngBounds(line).getCenter() : null;
+        results.push({
+          title: carto.address.split(',')[0] || 'Resultado oficial',
+          sub: (carto.address || '') + (carto.postalCode ? ' · CP ' + carto.postalCode : ''),
+          src: 'Callejero oficial · CartoCiudad',
+          lat: center ? center.lat : parseFloat(carto.lat),
+          lon: center ? center.lng : parseFloat(carto.lng),
+          line
+        });
+      }
+
+      if (Array.isArray(nom)){
+        for (const r of nom){
+          results.push({
+            title: r.name || r.display_name.split(',')[0],
+            sub: r.display_name,
+            src: 'OpenStreetMap · Nominatim',
+            lat: parseFloat(r.lat),
+            lon: parseFloat(r.lon),
+            line: null
+          });
+        }
+      }
+
+      if (!results.length){
+        ul.innerHTML = '<li class="empty">Sin resultados. Prueba solo con el nombre de la calle.</li>';
+        return;
+      }
+
+      for (const r of results){
+        const li = document.createElement('li');
+        li.innerHTML = `<div class="rn">${esc(r.title)}</div><div class="rd">${esc(r.sub)}</div><div class="src">${esc(r.src)}</div>`;
+        li.addEventListener('click', () => selectStreet(r));
+        ul.appendChild(li);
+      }
+    }).catch(() => {
+      if (mySeq !== searchSeq) return; /* otra búsqueda más reciente */
+      ul.innerHTML = '<li class="empty">Error al buscar. Reintenta en unos segundos.</li>';
+    });
+  }
+
+  function selectStreet(r){
+    let lat = r.lat, lon = r.lon;
+    if (r.line && r.line.length){
+      const c = L.latLngBounds(r.line).getCenter();
+      lat = c.lat; lon = c.lng;
+    }
+    if (!isFinite(lat) || !isFinite(lon)) return;
+
+    streetMarkers.clearLayers();
+
+    /* Trazado de la calle (naranja corporativo) */
+    if (r.line && r.line.length > 1){
+      const poly = L.polyline(r.line, { color: '#f97316', weight: 4, opacity: 0.9 });
+      streetMarkers.addLayer(poly);
+    }
+
+    const marker = L.marker([lat, lon], {
+      icon: L.divIcon({
+        className: '',
+        html: '<div style="width:14px;height:14px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#f97316;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.45)"></div>',
+        iconSize: [14, 14], iconAnchor: [7, 7]
+      })
+    });
+    streetMarkers.addLayer(marker);
+    streetMarkers.addTo(map);
+
+    map.flyTo([lat, lon], Math.max(map.getZoom(), 15), { duration: 0.9 });
+
+    const hit = findBarriadaAt(lon, lat);
+    $('streetCard').classList.add('on');
+    $('scTitle').textContent = r.title;
+    $('scBarriada').textContent = hit
+      ? `Barriada: ${hit.name}${hit.exact ? '' : ' (la más cercana — el punto queda fuera de las barriadas)'}`
+      : 'No se encontró barriada próxima';
+    const zid = hit ? zoneOf(hit.name) : 'none';
+    $('scZona').textContent = hit ? `Zona: ${zoneById(zid).nombre}` : '';
+    const chip = $('scChip');
+    chip.textContent = zoneById(zid).nombre;
+    chip.style.background = zoneById(zid).color;
+
+    if (hit){
+      selectedBarriada = hit.name;
+      renderBarriadas();
+      const layer = barriadasLayer.getLayers().find(l => l.feature.properties.nombre === hit.name);
+      if (layer){
+        layer.bringToFront();
+        layer.openPopup();
+      }
+    }
+    $('searchResults').innerHTML = '';
+  }
+
+  function findBarriadaAt(lon, lat){
+    const pt = { type: 'Feature', geometry: { type: 'Point', coordinates: [lon, lat] } };
+    let best = null, bestDist = Infinity;
+    for (const f of barriadas){
+      try{
+        if (turf.booleanPointInPolygon(pt, f)){
+          return { name: f.properties.nombre, exact: true };
+        }
+        const d = turf.distance(pt, turf.centroid(f));
+        if (d < bestDist){ bestDist = d; best = f; }
+      }catch(e){}
+    }
+    return best ? { name: best.properties.nombre, exact: false } : null;
+  }
+
+  /* ====================== Toggles ====================== */
+
+  function bindToggles(){
+    $('tBarriadas').addEventListener('change', function(){
+      if (!barriadasLayer) return;
+      if (this.checked) barriadasLayer.addTo(map);
+      else barriadasLayer.remove();
+      $('tBarriadas').closest('.toggle').querySelector('.onoff').textContent = this.checked ? 'ON' : 'OFF';
+    });
+    $('tZonas').addEventListener('change', function(){
+      if (this.checked) renderZonas();
+      else if (zonasLayer) zonasLayer.remove();
+      renderBarriadas(); /* cambia entre color por zona y color individual */
+      renderLegend();
+      $('tZonas').closest('.toggle').querySelector('.onoff').textContent = this.checked ? 'ON' : 'OFF';
+    });
+    $('tSearch').addEventListener('change', function(){
+      const on = this.checked;
+      $('searchBox').classList.toggle('on', on);
+      $('tSearch').closest('.toggle').querySelector('.onoff').textContent = on ? 'ON' : 'OFF';
+      if (!on){
+        streetMarkers.remove();
+        $('searchResults').innerHTML = '';
+        $('streetCard').classList.remove('on');
+      }
+    });
+  }
+
+  /* ====================== Eventos ====================== */
+
+  function bindEvents(){
+    $('searchBtn').addEventListener('click', searchStreets);
+    let debounce = null;
+    $('streetInput').addEventListener('input', () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(searchStreets, 450);
+    });
+    $('streetInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter'){ e.preventDefault(); searchStreets(); }
+    });
+    $('filterBarriadas').addEventListener('input', renderManager);
+    $('resetBtn').addEventListener('click', resetZones);
+    $('exportBtn').addEventListener('click', exportZones);
+    map.on('zoomend', () => {
+      if (!barriadasLayer) return;
+      const want = map.getZoom() >= 14;
+      if (labelsShown !== want){
+        renderBarriadas();
+      }
+    });
+  }
+
+  /* ====================== Arranque ====================== */
+
+  bindToggles();
+  bindEvents();
+  loadBarriadas();
+</script>
+</body>
+</html>
