@@ -31,6 +31,7 @@
   .backdrop{display:none}
   .sheet-handle{display:none}
   .sc-close{display:none}
+  .panel-close{display:none}
 
   @media (max-width:820px){
     body{overflow:hidden}
@@ -68,6 +69,9 @@
     #panel{position:fixed;top:0;bottom:0;left:0;width:86%;max-width:340px;z-index:1200;border-right:1px solid var(--line);border-radius:0 18px 18px 0;box-shadow:12px 0 40px rgba(16,24,40,.22);transform:translateX(-105%);transition:transform .28s ease}
     #panel.open{transform:translateX(0)}
     .sheet-handle{display:none}
+
+    /* Botón de cierre visible dentro del menú */
+    .panel-close{display:grid;place-items:center;position:absolute;top:10px;right:10px;z-index:5;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--txt);font-size:17px;line-height:1}
 
     /* Fondo oscuro al abrir el menú */
     .backdrop{display:block;position:fixed;inset:0;z-index:1100;background:rgba(17,24,39,.45);opacity:0;pointer-events:none;transition:opacity .25s}
@@ -254,6 +258,7 @@
   <aside id="panel">
     <div class="sheet-handle"></div>
     <div class="p-head">
+      <button class="panel-close" id="panelClose" aria-label="Cerrar menú">×</button>
       <div class="brand">
         <img class="logo" src="logo.png" alt="Logo" onerror="this.style.display='none';var f=document.getElementById('logoFallback');if(f){f.style.display='flex';}" />
         <div class="logo-fallback" id="logoFallback">AZ</div>
@@ -1027,6 +1032,7 @@
     if (!feats.length) return;
     const bounds = L.geoJSON(feats).getBounds();
     if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30] });
+    if (isMobile()) closePanel(); /* pliega el menú al interactuar */
   }
 
   function zoomToBarriada(name){
@@ -1037,6 +1043,7 @@
     selectedBarriada = name;
     renderBarriadas();
     highlightAndPopup(name);
+    if (isMobile()) closePanel(); /* pliega el menú al interactuar */
   }
 
   function renderAll(fit){
@@ -1334,8 +1341,26 @@
 
     /* Menú móvil lateral */
     $('burgerBtn').addEventListener('click', togglePanel);
+    $('panelClose').addEventListener('click', closePanel);
     $('backdrop').addEventListener('click', closePanel);
     $('scClose').addEventListener('click', () => $('streetCard').classList.remove('on'));
+
+    /* Deslizar el menú hacia la izquierda para plegarlo */
+    let touchX = null, touchY = null;
+    $('panel').addEventListener('touchstart', (e) => {
+      touchX = e.touches[0].clientX;
+      touchY = e.touches[0].clientY;
+    }, { passive: true });
+    $('panel').addEventListener('touchend', (e) => {
+      if (touchX == null) return;
+      const dx = e.changedTouches[0].clientX - touchX;
+      const dy = e.changedTouches[0].clientY - touchY;
+      touchX = touchY = null;
+      if (dx < -60 && Math.abs(dx) > Math.abs(dy) * 1.5){
+        closePanel();
+      }
+    }, { passive: true });
+
     window.addEventListener('resize', () => {
       if (!isMobile()) closePanel();
     });
