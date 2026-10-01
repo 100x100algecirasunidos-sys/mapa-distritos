@@ -65,9 +65,9 @@
     #searchResultsM .src{font-size:10px;color:var(--accent);font-weight:700;margin-top:2px}
     #searchResultsM .empty{color:var(--muted);font-size:12px;padding:6px 2px;cursor:default}
 
-    /* Menú lateral desplegable */
-    #panel{position:fixed;top:0;bottom:0;left:0;width:86%;max-width:340px;z-index:1200;border-right:1px solid var(--line);border-radius:0 18px 18px 0;box-shadow:12px 0 40px rgba(16,24,40,.22);transform:translateX(-105%);transition:transform .28s ease}
-    #panel.open{transform:translateX(0)}
+    /* Menú lateral desplegable (especificidad alta para ganar a la regla de escritorio) */
+    #app #panel{position:fixed;top:0;bottom:0;left:0;width:80%;max-width:320px;z-index:1200;border-right:1px solid var(--line);border-radius:0 18px 18px 0;box-shadow:12px 0 40px rgba(16,24,40,.22);transform:translateX(-105%);transition:transform .28s ease}
+    #app #panel.open{transform:translateX(0)}
     .sheet-handle{display:none}
 
     /* Botón de cierre visible dentro del menú */
@@ -78,16 +78,16 @@
     .backdrop.on{opacity:1;pointer-events:auto}
 
     /* En móvil las capas van en la barra superior; en el menú ocultamos toggles y buscador de escritorio */
-    #panel .toggles{display:none}
+    #app #panel .toggles{display:none}
     #searchBox{display:none!important}
 
     /* Control de mapa base más abajo para no tapar la barra */
     .base-switch{top:118px!important;right:10px!important}
     .leaflet-control-zoom{top:118px!important}
 
-    /* Tarjeta de calle flotante */
-    #streetCard{left:12px;right:12px;bottom:12px;max-width:none}
-    #streetCard .sc-close{display:grid}
+    /* Tarjeta de calle flotante (especificidad alta para ganar a la regla base) */
+    body #streetCard{left:12px;right:12px;bottom:12px;max-width:none}
+    body #streetCard .sc-close{display:grid}
   }
 
   /* Panel */
