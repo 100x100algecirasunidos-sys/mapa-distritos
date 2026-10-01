@@ -25,11 +25,48 @@
   /* Layout */
   #app{display:grid;grid-template-columns:400px 1fr;height:100vh}
   #map{height:100vh;background:#e9ebef}
-  @media (max-width:1024px){
-    body{overflow:auto}
-    #app{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:auto}
-    #panel{max-height:60vh;border-right:none;border-bottom:1px solid var(--line)}
-    #map{height:70vh}
+
+  /* Elementos móviles (ocultos en escritorio) */
+  .mobile-topbar{display:none}
+  .backdrop{display:none}
+  .fab{display:none}
+  .sheet-handle{display:none}
+  .sc-close{display:none}
+
+  @media (max-width:820px){
+    body{overflow:hidden}
+    #app{display:block;height:100dvh}
+    #map{position:fixed;inset:0;height:100dvh;height:100vh}
+
+    /* Barra superior flotante */
+    .mobile-topbar{display:flex;align-items:center;gap:10px;position:fixed;top:0;left:0;right:0;z-index:1050;padding:8px 12px;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+    .mobile-topbar .logo{height:34px}
+    .mobile-topbar .mt-title{font-size:14.5px;font-weight:800;color:#111827;flex:1}
+    .mobile-topbar .mt-title span{color:var(--accent)}
+    .mt-burger{background:#fff;border:1px solid var(--line);border-radius:10px;width:38px;height:38px;font-size:18px;color:var(--txt)}
+
+    /* Panel como hoja inferior */
+    #panel{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:1200;max-height:82dvh;border-radius:20px 20px 0 0;border-right:none;border-top:1px solid var(--line);box-shadow:0 -12px 40px rgba(16,24,40,.18);transform:translateY(105%);transition:transform .28s ease}
+    #panel.open{transform:translateY(0)}
+    .sheet-handle{display:block;width:44px;height:5px;border-radius:999px;background:#d6dae0;margin:8px auto 0;flex:none}
+    .p-head{padding-top:8px}
+
+    /* Fondo oscuro al abrir la hoja */
+    .backdrop{display:block;position:fixed;inset:0;z-index:1100;background:rgba(17,24,39,.45);opacity:0;pointer-events:none;transition:opacity .25s}
+    .backdrop.on{opacity:1;pointer-events:auto}
+
+    /* Botón flotante de búsqueda */
+    .fab{display:grid;place-items:center;position:fixed;right:14px;bottom:18px;z-index:1000;width:56px;height:56px;border-radius:50%;background:var(--accent);color:#fff;border:none;box-shadow:0 8px 24px rgba(249,115,22,.45)}
+    .fab:active{background:var(--accent-dark)}
+    .fab svg{width:24px;height:24px}
+
+    /* Control de mapa base más arriba para no tapar la barra */
+    .base-switch{top:58px!important;right:10px!important}
+    .leaflet-control-zoom{top:58px!important}
+
+    /* Tarjeta de calle flotante */
+    #streetCard{left:12px;right:12px;bottom:12px;max-width:none}
+    #streetCard .sc-close{display:grid}
   }
 
   /* Panel */
@@ -79,12 +116,13 @@
   #searchResults .src{font-size:10px;color:var(--accent);font-weight:700;margin-top:2px}
   #searchResults .empty{color:var(--muted);font-size:12px;padding:6px 2px;cursor:default}
 
-  /* Tarjeta de resultado de calle */
-  #streetCard{display:none;margin-bottom:14px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:13px;padding:11px}
+  /* Tarjeta de resultado de calle (flotante sobre el mapa) */
+  #streetCard{display:none;position:fixed;left:420px;bottom:22px;width:320px;max-width:calc(100vw - 440px);border:1px solid var(--accent);background:var(--accent-soft);border-radius:13px;padding:11px 34px 11px 11px;z-index:900;box-shadow:0 10px 30px rgba(16,24,40,.18)}
   #streetCard.on{display:block}
-  #streetCard .sc-title{font-size:13px;font-weight:800;margin-bottom:6px}
+  #streetCard .sc-title{font-size:13px;font-weight:800;margin-bottom:6px;padding-right:4px}
   #streetCard .sc-line{font-size:12.5px;margin:3px 0;color:#374151}
   #streetCard .zone-chip{display:inline-block;padding:2px 10px;border-radius:999px;font-size:11.5px;font-weight:700;color:#fff;margin-top:6px}
+  #streetCard .sc-close{display:none;position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;border:none;background:rgba(17,24,39,.08);color:var(--txt);font-size:15px;line-height:1;place-items:center}
 
   /* Secciones con título */
   .sec-title{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin:16px 0 8px}
@@ -162,8 +200,18 @@
 </style>
 </head>
 <body>
+<div class="mobile-topbar" id="mobileTopbar">
+  <img class="logo" src="logo.png" alt="Logo" onerror="this.style.display='none'" />
+  <div class="mt-title">Algeciras · <span>Zonas</span></div>
+  <button class="mt-burger" id="burgerBtn" aria-label="Abrir panel">☰</button>
+</div>
+<div class="backdrop" id="backdrop"></div>
+<button class="fab" id="fabSearch" aria-label="Buscar calle">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+</button>
 <div id="app">
   <aside id="panel">
+    <div class="sheet-handle"></div>
     <div class="p-head">
       <div class="brand">
         <img class="logo" src="logo.png" alt="Logo" onerror="this.style.display='none';var f=document.getElementById('logoFallback');if(f){f.style.display='flex';}" />
@@ -213,12 +261,6 @@
           <button class="search-btn" id="searchBtn">Buscar</button>
         </div>
         <ul id="searchResults"></ul>
-        <div id="streetCard">
-          <div class="sc-title" id="scTitle">Calle</div>
-          <div class="sc-line" id="scBarriada"></div>
-          <div class="sc-line" id="scZona"></div>
-          <span class="zone-chip" id="scChip">Zona</span>
-        </div>
       </div>
 
       <!-- Leyenda -->
@@ -226,15 +268,15 @@
       <div class="legend" id="legend"></div>
 
       <!-- Gestor -->
-      <div class="sec-title">Gestor de barriadas</div>
+      <div class="sec-title" id="managerTitle">Gestor de barriadas</div>
       <input id="filterBarriadas" type="text" placeholder="Filtrar barriada…" autocomplete="off" />
       <div id="zoneGroups"></div>
 
-      <div class="actions">
+      <div class="actions" id="actionsRow">
         <button class="btn primary" id="resetBtn">Restablecer zonificación</button>
         <button class="btn" id="exportBtn">Exportar JSON</button>
       </div>
-      <div class="note">
+      <div class="note" id="appNote">
         Haz clic en una barriada del mapa o usa el desplegable para cambiar su zona. Usa el lápiz de la leyenda para
         renombrar cada zona. Todo se guarda automáticamente en tu navegador. Base cartográfica: Esri (sin API key).
         Callejero oficial: CartoCiudad · complemento: Nominatim (OSM). Datos: WFS del geoportal de Algeciras.
@@ -243,6 +285,14 @@
   </aside>
 
   <main><div id="map"></div></main>
+</div>
+
+<div id="streetCard">
+  <button class="sc-close" id="scClose" aria-label="Cerrar">×</button>
+  <div class="sc-title" id="scTitle">Calle</div>
+  <div class="sc-line" id="scBarriada"></div>
+  <div class="sc-line" id="scZona"></div>
+  <span class="zone-chip" id="scChip">Zona</span>
 </div>
 
 <div id="loading"><div class="load-card"><div class="spinner"></div><p>Cargando barriadas de Algeciras…</p><button id="retryBtn" style="display:none;margin-top:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:8px 16px;font-weight:700">Reintentar ahora</button></div></div>
@@ -260,6 +310,11 @@
   const NAMES_KEY = 'algeciras_zonas_names_v2';
   const CACHE_KEY = 'algeciras_barriadas_cache_v2';
   const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 h
+
+  /* Modo edición oculto: solo accesible con ?modificaciones o #modificaciones */
+  const EDIT_MODE = new URLSearchParams(location.search).has('modificaciones') ||
+                    (location.hash || '').includes('modificaciones');
+  const isMobile = () => window.innerWidth <= 820;
 
   /* Zonas por defecto: ZONA 1..ZONA 5 (renombrables) */
   const ZONES = [
@@ -615,13 +670,20 @@
 
   function buildPopup(name){
     const zid = zoneOf(name);
+    const zonaLabel = zid === 'none'
+      ? 'Sin zona asignada'
+      : `Barriada de <b>${esc(zoneById(zid).nombre)}</b>`;
+    if (!EDIT_MODE){
+      return `
+        <div class="pp">
+          <div class="pp-title"><span class="dot" style="background:${zoneById(zid).color}"></span>${esc(name)}</div>
+          <div class="pp-zone">${zonaLabel}</div>
+        </div>`;
+    }
     const zoneOpts = ZONES.map(z =>
       `<option value="${z.id}" ${z.id === zid ? 'selected' : ''}>${esc(z.nombre)}</option>`
     ).join('');
     const noneOpt = `<option value="none" ${zid === 'none' ? 'selected' : ''}>Ninguna (sin zona)</option>`;
-    const zonaLabel = zid === 'none'
-      ? 'Sin zona asignada'
-      : `Barriada de <b>${esc(zoneById(zid).nombre)}</b>`;
     return `
       <div class="pp">
         <div class="pp-title"><span class="dot" style="background:${zoneById(zid).color}"></span>${esc(name)}</div>
@@ -699,6 +761,20 @@
 
   /* ====================== Render: panel ====================== */
 
+  /* Modo consulta (sin ?modificaciones): oculta las herramientas de edición */
+  function updateEditUi(){
+    ['managerTitle', 'filterBarriadas', 'zoneGroups', 'actionsRow', 'appNote'].forEach(id => {
+      const el = $(id);
+      if (el) el.style.display = EDIT_MODE ? '' : 'none';
+    });
+    const sub = document.querySelector('.brand .sub');
+    if (sub){
+      sub.textContent = EDIT_MODE
+        ? 'Barriadas delimitadas · 5 zonas de color · MODO EDICIÓN'
+        : 'Barriadas delimitadas · 5 zonas de color · consulta';
+    }
+  }
+
   function renderLegend(){
     const el = $('legend');
     el.innerHTML = '';
@@ -740,15 +816,17 @@
       nameEl.className = 'leg-name';
       nameEl.textContent = z.nombre;
       item.appendChild(nameEl);
-      const editBtn = document.createElement('button');
-      editBtn.className = 'leg-edit';
-      editBtn.innerHTML = pencil;
-      editBtn.title = 'Renombrar zona';
-      editBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        startRename(z.id, nameEl);
-      });
-      item.appendChild(editBtn);
+      if (EDIT_MODE){
+        const editBtn = document.createElement('button');
+        editBtn.className = 'leg-edit';
+        editBtn.innerHTML = pencil;
+        editBtn.title = 'Renombrar zona';
+        editBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          startRename(z.id, nameEl);
+        });
+        item.appendChild(editBtn);
+      }
       const countEl = document.createElement('span');
       countEl.className = 'leg-count';
       countEl.textContent = count + ' barriadas';
@@ -880,6 +958,7 @@
 
   function renderAll(fit){
     updateKpis();
+    updateEditUi();
     renderBarriadas();
     renderZonas();
     renderLegend();
@@ -1058,6 +1137,7 @@
       }
     }
     $('searchResults').innerHTML = '';
+    if (isMobile()) closePanel(); /* en móvil se cierra la hoja para ver el mapa */
   }
 
   function findBarriadaAt(lon, lat){
@@ -1123,6 +1203,21 @@
       $('loading').querySelector('p').textContent = 'Cargando barriadas de Algeciras…';
       loadBarriadas();
     });
+
+    /* Panel móvil (hoja inferior) */
+    $('burgerBtn').addEventListener('click', togglePanel);
+    $('backdrop').addEventListener('click', closePanel);
+    $('fabSearch').addEventListener('click', () => {
+      openPanel();
+      const t = $('tSearch');
+      if (!t.checked){ t.checked = true; t.dispatchEvent(new Event('change')); }
+      setTimeout(() => $('streetInput').focus(), 350);
+    });
+    $('scClose').addEventListener('click', () => $('streetCard').classList.remove('on'));
+    window.addEventListener('resize', () => {
+      if (!isMobile()) closePanel();
+    });
+
     map.on('zoomend', () => {
       if (!barriadasLayer) return;
       const want = map.getZoom() >= 14;
@@ -1130,6 +1225,21 @@
         renderBarriadas();
       }
     });
+  }
+
+  /* ====================== Panel móvil ====================== */
+
+  function openPanel(){
+    $('panel').classList.add('open');
+    $('backdrop').classList.add('on');
+  }
+  function closePanel(){
+    $('panel').classList.remove('open');
+    $('backdrop').classList.remove('on');
+  }
+  function togglePanel(){
+    if ($('panel').classList.contains('open')) closePanel();
+    else openPanel();
   }
 
   /* ====================== Arranque ====================== */
